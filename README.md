@@ -1,13 +1,11 @@
 # ccgo
 
-一个极简、易扩展的 HTTP 微框架 + 示例项目  
-（基于你自己的 `cc` 框架实现）
+一个极简、易扩展的 golang HTTP 微框架
 
 ---
 
 ## 1. 项目简介
 
-`ccgo` 演示了如何在一个标准 Go Module 项目中使用 `cyf-gh/ccgo` 框架（即你现有的 `pkg/cc`）  
 快速搭建 RESTful 与 WebSocket 接口，并内置常用中间件：
 
 - **路由组**（ActionGroup）  
@@ -113,9 +111,14 @@ go run ./main.go   # 默认监听 :8080
 | `PORT`          | 8080   | 监听端口                 |
 | `LOG_LEVEL`     | info   | glg 日志级别             |
 | `TG_DEFAULT_QPS`| 30     | 全局默认 QPS 上限        |
+| `CC_MAX_ROUTES` | `256` | 路由映射初始容量。若预期路由数 > 256，可增大以减少 re-hash。 |
+| `GOGC`          | `100` | Go GC 目标百分比；提高至 `200` 可降低 CPU 占用。     |
+| `GOMAXPROCS`    | CPU核数 | 限制 Go 运行时使用的核心数，可手动覆盖。                |
 
-（读取方式后续可用 Viper / env 包扩展）
 
+```bash
+CC_MAX_ROUTES=1024 GOGC=200 go run ./main.go
+```
 ---
 
 ## 7. 构建 & 部署

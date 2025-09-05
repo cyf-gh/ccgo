@@ -37,6 +37,61 @@
         └─util
 ```
 
+### 2.1 项目逻辑
+
+```mermaid
+
+%% ccgo 框架 HTTP 请求生命周期（核心路径）
+flowchart TD
+    A(客户端发起请求) -->|TCP 连接| B[net/http ServeMux]
+    B --> C{匹配路由?}
+    C -->|未注册| D[返回 404\nMakeHER404]
+    C -->|已注册| E[取出对应 handler\nGET/POST/WS]
+
+    %% ----- 中间件洋葱圈 -----
+    E --> F1[ErrorFetcher\nrecover 兜底]
+    F1 --> F2[TrafficGuard\n限流判断]
+    F2 --> F3[Method 检查\nGET/POST/WS]
+    F3 --> F4[AccessRecord\n记录 IP]
+    F4 --> F5[LogUsedTime\n开始计时]
+
+    %% ----- 业务 handler -----
+    F5 --> G{ActionPackage\n解析参数}
+    G -->|JSON Body| H[GetBodyUnmarshal\n<=1MB 走池化 Buffer]
+    G -->|Form Value| I[GetFormValue]
+    G -->|Cookie| J[GetCookie]
+
+    %% ----- 业务逻辑 -----
+    H --> K[开发者编写的 ActionFunc]
+    I --> K
+    J --> K
+
+    %% ----- 返回封装 -----
+    K --> L{返回结果}
+    L -->|正常| M[MakeHER200\nHerOkWithData]
+    L -->|参数错误| N[MakeHER400\nHerArgInvalid]
+    L -->|系统异常| O[MakeHER500\nrecover 已兜底]
+
+    %% ----- 响应客户端 -----
+    M --> P[HttpReturnHER\n统一 JSON 响应]
+    N --> P
+    O --> P
+    P --> Q[中间件 after 逻辑\n记录耗时/日志]
+    Q --> R(返回客户端)
+
+    %% ----- WebSocket 分支 -----
+    E -.->|路径含 /ws| S[WS 中间件]
+    S --> T[websocket.Upgrader]
+    T --> U[ActionFuncWS\nReadJson / WriteJson]
+    U --> V(长连接交互)
+
+    %% ----- 限流拒绝 -----
+    F2 -- 超限 --> Z[返回 400\nhttp.Error]
+    Z --> R
+
+    style K fill:#ffeaa7
+    style P fill:#81ecec
+
 ---
 
 ## 3. 快速开始
